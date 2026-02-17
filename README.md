@@ -28,6 +28,10 @@ See [progress-tracker.md](progress-tracker.md) for skill matrix and statistics.
 
 - `scripts/jwt-none-attack.py` - JWT none algorithm attack tool
 
+## Resources
+
+See [resources.md](resources.md) for curated security bookmarks (exploit databases, wordlists, hash cracking, OSINT, and more).
+
 ## License
 
 MIT
