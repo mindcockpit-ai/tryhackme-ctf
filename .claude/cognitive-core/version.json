@@ -1,0 +1,100 @@
+{
+    "version": "1.0.0",
+    "installed_at": "2026-02-17T11:22:05Z",
+    "project": "tryhackme-ctf",
+    "language": "python",
+    "database": "none",
+    "architecture": "none",
+    "agents": "coordinator security-analyst",
+    "skills": "session-resume tech-intel ctf-pentesting",
+    "hooks": "setup-env compact-reminder validate-bash",
+    "cicd": false,
+    "monitoring": false,
+    "source": "/Users/pewo/workspace/cognitive-core",
+    "files": [
+    {
+        "path": ".claude/AGENTS_README.md",
+        "sha256": "41a9eacdf66e146c23064ebbde94d491445acc9f6a8e76636af2a17f50e31275"
+    },
+    {
+        "path": ".claude/agents/project-coordinator.md",
+        "sha256": "1dd3b4f5eb38bbec7948148af5d923270f9d9fb040206413149ab0b9abe0679a"
+    },
+    {
+        "path": ".claude/agents/security-analyst.md",
+        "sha256": "442e43ad8f859174d32031454f50c7ea9c713eb9781f90a9b0ef6fe2edc85901"
+    },
+    {
+        "path": ".claude/compact-rules.md",
+        "sha256": "3713238d76f2f430bcba05aade68d972036ac749787d5f99aba7d45136b5cea6"
+    },
+    {
+        "path": ".claude/fitness-checks.sh",
+        "sha256": "76b434bc8c15ce5703340f93d44ba388911497fdbd1338e28e227bee0db02ebb"
+    },
+    {
+        "path": ".claude/hooks/_lib.sh",
+        "sha256": "00dabe563add4de4fead915b95c65c00255d4371a442a312fc1473114c822aca"
+    },
+    {
+        "path": ".claude/hooks/compact-reminder.sh",
+        "sha256": "4006235bd56913a505b7ccecf7dfd654a1182629fcbf1021cf20dd411ef5320d"
+    },
+    {
+        "path": ".claude/hooks/setup-env.sh",
+        "sha256": "26946f302ba05b4a4a13fcab991736e76de7023853256df4ec0dfc5a10250951"
+    },
+    {
+        "path": ".claude/hooks/validate-bash.sh",
+        "sha256": "6ec432a5d5cc2f90381d01297de7b4c2df8bfdf50324c6821ad528e7ac2d8819"
+    },
+    {
+        "path": ".claude/lint-config.sh",
+        "sha256": "c0fd25babc3a5d9ead133f867886abc33ed42e221247519fdc44425b005d6702"
+    },
+    {
+        "path": ".claude/pack.conf",
+        "sha256": "8c9e94f8f2d9eaaf49ff15e43a79d726b5d6dcd0a9bbf71ebfbc75a0846ee670"
+    },
+    {
+        "path": ".claude/settings.json",
+        "sha256": "1de8705bab7c6c71145200dd598e540cd2822a8787dbf5b3ac513eb58d8599f0"
+    },
+    {
+        "path": ".claude/skills/ctf-pentesting/SKILL.md",
+        "sha256": "9e2e82a9a9ff695bffa7628e91d354f0963f240af0a80f2e7750d6c6ec38ce8a"
+    },
+    {
+        "path": ".claude/skills/ctf-pentesting/references/attack-vectors.md",
+        "sha256": "f8b45d4ac724618608cc4b6672b4d282e9b44ba9e6de5d56ab2fa950bcdd31c8"
+    },
+    {
+        "path": ".claude/skills/ctf-pentesting/references/privesc.md",
+        "sha256": "f3b427bd393fdca3c3fd832fcad3e5a326e05fae86dded6e9a561e45a028eb1a"
+    },
+    {
+        "path": ".claude/skills/ctf-pentesting/references/progress-tracker.md",
+        "sha256": "17c6d39f1eac51632cc9a8dac23fd27fe40f801860ef0473253802da052c8870"
+    },
+    {
+        "path": ".claude/skills/ctf-pentesting/references/tech-specific.md",
+        "sha256": "c702c42244807348eaa8e24e813c24c385f7ff070c0657ef4bdde6e59e09c02e"
+    },
+    {
+        "path": ".claude/skills/ctf-pentesting/scripts/quick-scan.sh",
+        "sha256": "f5283aa6cbbfd15ab6a3bfb115245e1fceea8632796ab9e218ee854c5c178ceb"
+    },
+    {
+        "path": ".claude/skills/python-patterns/SKILL.md",
+        "sha256": "07d664ca1a0dcfb0748b09c9feb343ef21cc91ed11fbb20fc3ed55fb51fdc82b"
+    },
+    {
+        "path": ".claude/skills/session-resume/SKILL.md",
+        "sha256": "beade10c91cbc8c8b059c10865b24fec9ccd8eb9ce1cb7478ac57289e3dcc0bc"
+    },
+    {
+        "path": ".claude/skills/tech-intel/SKILL.md",
+        "sha256": "443eb46a0f183ace6815c48348f144fa8b9ba94ca17a4485e417989feb6c6eb7"
+    }
+]
+}

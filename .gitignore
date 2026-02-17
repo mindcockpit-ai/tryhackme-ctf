@@ -1,0 +1,26 @@
+# Security - never commit keys or secrets
+*.key
+*.pem
+.env
+.env.*
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Tools output
+*.nmap
+*.gnmap
+*.xml
