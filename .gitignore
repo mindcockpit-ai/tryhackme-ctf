@@ -24,3 +24,6 @@ venv/
 *.nmap
 *.gnmap
 *.xml
+
+# cognitive-core runtime logs
+.claude/cognitive-core/security.log
