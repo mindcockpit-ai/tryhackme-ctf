@@ -27,3 +27,4 @@ venv/
 
 # cognitive-core runtime logs
 .claude/cognitive-core/security.log
+.claude/cognitive-core/version.json
