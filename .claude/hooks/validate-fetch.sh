@@ -15,7 +15,7 @@ INPUT=$(cat)
 URL=$(echo "$INPUT" | _cc_json_get ".tool_input.url")
 QUERY=$(echo "$INPUT" | _cc_json_get ".tool_input.query")
 
-# For WebSearch, just log and allow — no domain filtering on search queries
+# For WebSearch, just log and allow - no domain filtering on search queries
 if [ -n "$QUERY" ] && [ -z "$URL" ]; then
     _cc_security_log "INFO" "web-search" "query=${QUERY}"
     exit 0
@@ -51,7 +51,7 @@ if [ "$_SECURITY_LEVEL" = "strict" ] && [ -n "${CC_ALLOWED_DOMAINS:-}" ]; then
         fi
     done
     if ! $allowed; then
-        REASON="Blocked: domain '${DOMAIN}' not in CC_ALLOWED_DOMAINS (strict mode)"
+        REASON="Blocked: domain '${DOMAIN}' not in CC_ALLOWED_DOMAINS (strict mode). Add it to CC_ALLOWED_DOMAINS in cognitive-core.conf or set CC_SECURITY_LEVEL=standard for prompts"
         _cc_security_log "DENY" "fetch-blocked" "${REASON}"
         _cc_json_pretool_deny "$REASON"
         exit 0
@@ -59,8 +59,13 @@ if [ "$_SECURITY_LEVEL" = "strict" ] && [ -n "${CC_ALLOWED_DOMAINS:-}" ]; then
 fi
 
 # Standard mode: escalate unknown domains to human (ask)
+# Session cache: domains allowed earlier in this session skip the prompt
 if [ "$_SECURITY_LEVEL" = "standard" ]; then
     if ! is_known_safe "$DOMAIN"; then
+        if _cc_session_cache_has "allowed-domains" "$DOMAIN"; then
+            _cc_security_log "INFO" "fetch-session-cached" "domain=${DOMAIN} url=${URL}"
+            exit 0
+        fi
         _cc_security_log "ASK" "fetch-unknown-domain" "domain=${DOMAIN} url=${URL}"
         _cc_json_pretool_ask "WebFetch to unknown domain '${DOMAIN}'. Allow this request?"
         exit 0

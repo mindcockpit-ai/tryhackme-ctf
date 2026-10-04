@@ -8,6 +8,82 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/_lib.sh"
 _cc_load_config
 
+# ---- TOFU migration: pin CC_FRAMEWORK_ROOT from version.json.source (#260) ----
+# One-shot: existing pre-#260 installs get CC_FRAMEWORK_ROOT appended on first
+# session after upgrade. Idempotent (second run sees line and skips).
+_TOFU_CONF=""
+if [ -f "${CC_PROJECT_DIR}/cognitive-core.conf" ]; then
+    _TOFU_CONF="${CC_PROJECT_DIR}/cognitive-core.conf"
+elif [ -f "${CC_PROJECT_DIR}/.claude/cognitive-core.conf" ]; then
+    _TOFU_CONF="${CC_PROJECT_DIR}/.claude/cognitive-core.conf"
+fi
+if [ -n "$_TOFU_CONF" ] && ! grep -qE '^CC_FRAMEWORK_ROOT=' "$_TOFU_CONF" 2>/dev/null; then
+    _ANCHOR_LOCKDIR="${CC_PROJECT_DIR}/.claude/cognitive-core/anchor.lock.d"
+    mkdir -p "$(dirname "$_ANCHOR_LOCKDIR")" 2>/dev/null || true
+    if mkdir "$_ANCHOR_LOCKDIR" 2>/dev/null; then
+        # shellcheck disable=SC2064
+        trap "rm -rf '${_ANCHOR_LOCKDIR}' 2>/dev/null || true" EXIT
+        _TOFU_VERSION_JSON="${CC_PROJECT_DIR}/.claude/cognitive-core/version.json"
+        if [ -f "$_TOFU_VERSION_JSON" ]; then
+            if command -v jq &>/dev/null; then
+                _TOFU_SOURCE=$(jq -r '.source // ""' "$_TOFU_VERSION_JSON" 2>/dev/null)
+            else
+                _TOFU_SOURCE=$(grep -o '"source"[[:space:]]*:[[:space:]]*"[^"]*"' "$_TOFU_VERSION_JSON" | head -1 | sed 's/.*"source"[[:space:]]*:[[:space:]]*"//;s/"$//')
+            fi
+            if [ -n "${_TOFU_SOURCE:-}" ] && [ -d "$_TOFU_SOURCE" ]; then
+                # Pre-TOFU sanity checks on the untrusted source before pinning
+                # it as the anchor (#256). Since CC_FRAMEWORK_ROOT is unset at
+                # this point, we cannot call _cc_validate_framework_source -
+                # apply a subset of its invariants inline: absolute path, no
+                # control chars, no `..`, canonicalizable, update.sh is a
+                # regular executable owned by the current user.
+                _TOFU_OK=true
+                case "$_TOFU_SOURCE" in
+                    /*) ;;
+                    *) _TOFU_OK=false ;;
+                esac
+                case "$_TOFU_SOURCE" in
+                    */../*|*/..|../*|..) _TOFU_OK=false ;;
+                esac
+                if [ "$_TOFU_OK" = true ] \
+                        && LC_ALL=C printf '%s' "$_TOFU_SOURCE" | LC_ALL=C grep -q '[[:cntrl:]]'; then
+                    _TOFU_OK=false
+                fi
+                if [ "$_TOFU_OK" = true ]; then
+                    _TOFU_RESOLVED="$(_cc_realpath "$_TOFU_SOURCE" 2>/dev/null)" || _TOFU_OK=false
+                fi
+                if [ "$_TOFU_OK" = true ] && [ -n "${_TOFU_RESOLVED:-}" ]; then
+                    _TOFU_UP="${_TOFU_RESOLVED}/update.sh"
+                    if [ -L "$_TOFU_UP" ] || [ ! -f "$_TOFU_UP" ] || [ ! -x "$_TOFU_UP" ]; then
+                        _TOFU_OK=false
+                    else
+                        _TOFU_OWNER=$(stat -f %u "$_TOFU_UP" 2>/dev/null || stat -c %u "$_TOFU_UP" 2>/dev/null || echo "")
+                        if [ -n "$_TOFU_OWNER" ] && [ "$_TOFU_OWNER" != "$(id -u)" ]; then
+                            _TOFU_OK=false
+                        fi
+                    fi
+                fi
+
+                if [ "$_TOFU_OK" = true ]; then
+                    # Double-check absence under lock (another session may have raced)
+                    if ! grep -qE '^CC_FRAMEWORK_ROOT=' "$_TOFU_CONF" 2>/dev/null; then
+                        chmod 0644 "$_TOFU_CONF" 2>/dev/null || true
+                        printf '\n# ===== FRAMEWORK ANCHOR (TOFU-migrated) =====\nCC_FRAMEWORK_ROOT="%s"\n' "$_TOFU_RESOLVED" >> "$_TOFU_CONF"
+                        chmod 0444 "$_TOFU_CONF" 2>/dev/null || true
+                        _cc_security_log "WARN" "tofu-migration" "Pinned CC_FRAMEWORK_ROOT=${_TOFU_RESOLVED} in ${_TOFU_CONF}"
+                        # Re-load config to pick up the newly pinned variable
+                        _cc_load_config
+                    fi
+                else
+                    _cc_security_log "DENY" "tofu-migration" "Refused to pin anchor from untrusted source=${_TOFU_SOURCE}"
+                fi
+            fi
+        fi
+        rm -rf "$_ANCHOR_LOCKDIR" 2>/dev/null || true
+        trap - EXIT
+    fi
+fi
+
 # Set environment variables via CLAUDE_ENV_FILE (persists for session)
 if [ -n "${CLAUDE_ENV_FILE:-}" ] && [ -n "${CC_ENV_VARS:-}" ]; then
     # Replace ${PROJECT_DIR} placeholder with actual path
@@ -20,10 +96,35 @@ _INTEGRITY_WARNINGS=""
 _VERSION_FILE="${CC_PROJECT_DIR}/.claude/cognitive-core/version.json"
 if [ -f "$_VERSION_FILE" ]; then
     _SOURCE_DIR=$(echo "$_VERSION_FILE" | xargs cat 2>/dev/null | _cc_json_get ".source")
+    # Validate _SOURCE_DIR before walking it (#256). When CC_FRAMEWORK_ROOT is
+    # unset (pre-#260 install pre-TOFU), allow the legacy behavior but log a
+    # security warning - do not silently skip the integrity compare.
+    if [ -n "$_SOURCE_DIR" ]; then
+        if [ -z "${CC_FRAMEWORK_ROOT:-}" ]; then
+            _cc_security_log "WARN" "source-validation" "CC_FRAMEWORK_ROOT unset; integrity check using unvalidated source=${_SOURCE_DIR}"
+        elif _cc_validate_framework_source "$_SOURCE_DIR" 2>/dev/null; then
+            _SOURCE_DIR="$CC_VALIDATED_SOURCE"
+        else
+            _SOURCE_DIR=""
+        fi
+    fi
     if [ -n "$_SOURCE_DIR" ] && [ -d "${_SOURCE_DIR}/core/hooks" ]; then
         for hook_file in "${CC_PROJECT_DIR}/.claude/hooks/"*.sh; do
             [ -f "$hook_file" ] || continue
             _basename=$(basename "$hook_file")
+            # Project-owned overrides are intentional, not drift, but always
+            # logged. Unpinned or stale overrides of security hooks fall
+            # through to the normal drift check (#328).
+            if type _cc_is_local_override &>/dev/null; then
+                _override_rc=0
+                _cc_is_local_override "hooks/${_basename}" "$hook_file" || _override_rc=$?
+                if [ "$_override_rc" -eq 0 ]; then
+                    _cc_security_log "INFO" "integrity-override" "Project-owned hook: ${_basename}"
+                    continue
+                elif [ "$_override_rc" -eq 2 ]; then
+                    _cc_security_log "WARN" "integrity-override" "Override not honoured (security hook needs a matching sha256 pin): ${_basename}"
+                fi
+            fi
             _src_file="${_SOURCE_DIR}/core/hooks/${_basename}"
             if [ -f "$_src_file" ]; then
                 _installed_sha=$(_cc_compute_sha256 "$hook_file")
