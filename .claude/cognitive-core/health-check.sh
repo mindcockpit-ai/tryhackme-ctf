@@ -161,6 +161,37 @@ if [ -d "$HOOKS_DIR" ]; then
         SOURCE_DIR=$(grep -o '"source"[[:space:]]*:[[:space:]]*"[^"]*"' "$VERSION_FILE" 2>/dev/null | head -1 | sed 's/.*"source"[[:space:]]*:[[:space:]]*"//;s/"//')
     fi
 
+    # Validate SOURCE_DIR before using it (#256)
+    # Source the framework library if available and validate. If validation
+    # fails, clear SOURCE_DIR so downstream comparisons skip the framework check.
+    if [ -n "$SOURCE_DIR" ]; then
+        _HC_LIB=""
+        for _cand in "$PROJECT_DIR/.claude/hooks/_lib.sh" "$PROJECT_DIR/core/hooks/_lib.sh"; do
+            if [ -f "$_cand" ]; then _HC_LIB="$_cand"; break; fi
+        done
+        if [ -n "$_HC_LIB" ]; then
+            # shellcheck disable=SC1090
+            source "$_HC_LIB"
+            # _lib.sh resolves its own project dir; a prefix assignment on
+            # source is discarded afterwards, leaving it unset under set -u
+            CC_PROJECT_DIR="$PROJECT_DIR"
+            _cc_load_config || true
+            if [ -z "${CC_FRAMEWORK_ROOT:-}" ]; then
+                # Not pinned yet (setup-env pins it on the next session):
+                # skip quietly, a read-only check must not log a DENY
+                echo -e "  ${BLUE}[INFO]${NC} CC_FRAMEWORK_ROOT not pinned yet; skipping integrity compare"
+                SOURCE_DIR=""
+            elif type _cc_validate_framework_source >/dev/null 2>&1 \
+                    && _cc_validate_framework_source "$SOURCE_DIR" 2>/dev/null; then
+                SOURCE_DIR="$CC_VALIDATED_SOURCE"
+            else
+                echo -e "  ${YELLOW}[WARN]${NC} SOURCE rejected by validation guard; skipping integrity compare"
+                SOURCE_DIR=""
+                ((WARNINGS++)) || true
+            fi
+        fi
+    fi
+
     HOOK_COUNT=0
     HOOK_MISMATCHES=0
     while IFS= read -r hook_file; do
@@ -205,7 +236,7 @@ if [ -d "$HOOKS_DIR" ]; then
 
     echo -e "  Total: $HOOK_COUNT hook(s)"
     if [ "$HOOK_MISMATCHES" -gt 0 ]; then
-        echo -e "  ${YELLOW}$HOOK_MISMATCHES hook(s) differ from framework${NC} — run update.sh to refresh or verify changes"
+        echo -e "  ${YELLOW}$HOOK_MISMATCHES hook(s) differ from framework${NC} - run update.sh to refresh or verify changes"
     fi
 else
     echo -e "  ${BLUE}[SKIP]${NC} No .claude/hooks/ directory"
@@ -258,14 +289,14 @@ echo ""
 # ---------------------------------------------------------------------------
 echo -e "${BOLD}========================================${NC}"
 if [ "$WARNINGS" -gt 0 ]; then
-    echo -e "  ${YELLOW}$WARNINGS warning(s)${NC} — components over budget or issues found"
+    echo -e "  ${YELLOW}$WARNINGS warning(s)${NC} - components over budget or issues found"
     echo -e "  Tips:"
     echo -e "    - Split large skills into SKILL.md + references/"
     echo -e "    - Use disable-model-invocation for manual-only skills"
     echo -e "    - Add disallowedTools to agents for least-privilege"
     echo -e "    - Run update.sh if hooks differ from framework"
 else
-    echo -e "  ${GREEN}All checks passed${NC} — context and security within budget"
+    echo -e "  ${GREEN}All checks passed${NC} - context and security within budget"
 fi
 echo -e "${BOLD}========================================${NC}"
 

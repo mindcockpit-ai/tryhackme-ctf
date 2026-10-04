@@ -45,7 +45,8 @@ fi
 
 # Run configured lint command (substitute $1 with file path)
 LINT_CMD="${CC_LINT_COMMAND//\$1/$FILE_PATH}"
-LINT_OUTPUT=$(eval "$LINT_CMD" 2>&1 || true)
+# shellcheck disable=SC2086
+LINT_OUTPUT=$(${LINT_CMD} 2>&1 || true)
 
 if [ -z "$LINT_OUTPUT" ]; then
     exit 0
@@ -69,7 +70,7 @@ if [ "${CC_LINT_DEBT_AUTO_ISSUE:-true}" = "true" ] && [ -n "${CC_LINT_SUPPRESS_P
             | grep -E "$SUPPRESS_PAT" \
             || true)
     else
-        # Not in git — check entire file (new file scenario)
+        # Not in git - check entire file (new file scenario)
         NEW_SUPPRESSIONS=$(grep -E "$SUPPRESS_PAT" "$FILE_PATH" 2>/dev/null || true)
     fi
 
